@@ -152,8 +152,18 @@ func (m Model) viewList() string {
 	b.WriteString(countStyle.Render(info))
 	b.WriteString("\n")
 
+	nameWidth := m.nameColumnWidth()
+
 	// Column headers
-	header := fmt.Sprintf("  %-5s %-30s %-10s %-10s %s", "Sel", "Name", "Used", "Refer", "Created")
+	header := fmt.Sprintf(
+		"  %-5s %-*s %-10s %-10s %s",
+		"Sel",
+		nameWidth,
+		"Name",
+		"Used",
+		"Refer",
+		"Created",
+	)
 	b.WriteString(headerStyle.Render(header))
 	b.WriteString("\n")
 	b.WriteString(headerStyle.Render(strings.Repeat("─", min(m.width, 90))))
@@ -208,9 +218,13 @@ func (m Model) viewList() string {
 
 		// Build the row (uncolored for width calculation)
 		plainName := snap.Name
-		if len(plainName) > 30 {
-			plainName = plainName[:27] + "..."
-			nameParts := strings.SplitN(snap.Name[:27], "@", 2)
+		if nameWidth > 0 && len(plainName) > nameWidth {
+			if nameWidth > 3 {
+				plainName = plainName[:nameWidth-3] + "..."
+			} else {
+				plainName = plainName[:nameWidth]
+			}
+			nameParts := strings.SplitN(plainName, "@", 2)
 			if len(nameParts) == 2 {
 				formattedName = datasetStyle.Render(
 					nameParts[0],
@@ -218,15 +232,13 @@ func (m Model) viewList() string {
 					"@",
 				) + snapNameStyle.Render(
 					nameParts[1],
-				) + normalStyle.Render(
-					"...",
 				)
 			}
 		}
 
 		// Build the colored line with formatted dataset@snapshot coloring
 		coloredLine := fmt.Sprintf("  %s ", check)
-		padLen := 30 - len(plainName)
+		padLen := nameWidth - len(plainName)
 		if padLen < 0 {
 			padLen = 0
 		}
@@ -275,6 +287,28 @@ func (m Model) viewCreate() string {
 
 	b.WriteString(createDialogStyle.Render(content))
 	return b.String()
+}
+
+func (m Model) nameColumnWidth() int {
+	const (
+		minWidth     = 20
+		usedWidth    = 10
+		referWidth   = 10
+		createdWidth = 16
+	)
+	fixed := 2 + 5 + 1 + 1 + usedWidth + 1 + referWidth + 1 + createdWidth
+	width := m.width - fixed
+	if width < minWidth {
+		return minWidth
+	}
+	return width
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (m Model) viewConfirmDelete() string {
