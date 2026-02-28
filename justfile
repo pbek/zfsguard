@@ -3,6 +3,8 @@
 
 import ".shared/common.just"
 
+version := `cat VERSION`
+
 # By default, run the `--list` command
 default:
     @just --list
@@ -18,42 +20,34 @@ update:
     go get -u
     go mod tidy
 
-# Build the project
+# Build both binaries
 [group('build')]
 build:
-    go build -o zfsguard main.go
+    go build -ldflags "-X github.com/pbek/zfsguard/internal/version.Version={{version}}" -v ./cmd/zfsguard
+    go build -ldflags "-X github.com/pbek/zfsguard/internal/version.Version={{version}}" -v ./cmd/zfsguard-monitor
 
-# Execute the built binary
-[group('build')]
-exec +ARGS='':
-    ./zfsguard exec {{ ARGS }}
-
-# Build and execute in one command
-[group('build')]
-build-exec +ARGS='': build
-    just exec {{ ARGS }}
-
-# Install the project
+# Install both binaries
 [group('build')]
 install:
-    go install
+    go install -ldflags "-X github.com/pbek/zfsguard/internal/version.Version={{version}}" ./cmd/zfsguard
+    go install -ldflags "-X github.com/pbek/zfsguard/internal/version.Version={{version}}" ./cmd/zfsguard-monitor
 
 # Run tests
 [group('test')]
 test:
-    go test ./...
+    go test -v -race ./...
 
 # Run go vet
 [group('test')]
 vet:
-    go vet
+    go vet ./...
 
 # Build using nix
 [group('nix')]
 nix-build:
-    nix-build -E '((import <nixpkgs> {}).callPackage (import ./default.nix) { })'
+    nix build
 
-# Force build using nix
+# Build using nix (force rebuild)
 [group('nix')]
 nix-build-force:
-    nix-build -E '((import <nixpkgs> {}).callPackage (import ./default.nix) { })' --check
+    nix build --rebuild
