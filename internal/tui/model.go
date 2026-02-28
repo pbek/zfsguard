@@ -22,6 +22,7 @@ const (
 	viewConfirmDelete
 	viewConfirmDeleteAll
 	viewStatus
+	viewHealth
 )
 
 // keyMap defines the keybindings for the TUI.
@@ -41,6 +42,7 @@ type keyMap struct {
 	PageUp     key.Binding
 	PageDown   key.Binding
 	FilterMode key.Binding
+	Health     key.Binding
 }
 
 var keys = keyMap{
@@ -59,10 +61,11 @@ var keys = keyMap{
 	PageUp:     key.NewBinding(key.WithKeys("pgup", "ctrl+u"), key.WithHelp("PgUp", "page up")),
 	PageDown:   key.NewBinding(key.WithKeys("pgdown", "ctrl+d"), key.WithHelp("PgDn", "page down")),
 	FilterMode: key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
+	Health:     key.NewBinding(key.WithKeys("h"), key.WithHelp("h", "health report")),
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Select, k.Delete, k.Create, k.Quit}
+	return []key.Binding{k.Help, k.Select, k.Delete, k.Create, k.Health, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
@@ -70,7 +73,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Up, k.Down, k.PageUp, k.PageDown},
 		{k.Select, k.SelectAll, k.FilterMode},
 		{k.Create, k.Delete, k.DeleteAll, k.Refresh},
-		{k.Help, k.Quit},
+		{k.Health, k.Help, k.Quit},
 	}
 }
 
@@ -101,6 +104,12 @@ type Model struct {
 	filterText   string
 	filtered     []int // indices into snapshots that match the filter
 
+	// Health report
+	poolStatuses  []zfs.PoolStatus
+	smartStatuses []zfs.SMARTStatus
+	healthLoading bool
+	healthScroll  int // scroll offset for health view
+
 	err error
 }
 
@@ -115,6 +124,12 @@ type statusMsg struct {
 	isErr bool
 }
 type clearStatusMsg struct{}
+
+type healthLoadedMsg struct {
+	pools []zfs.PoolStatus
+	smart []zfs.SMARTStatus
+	err   error
+}
 
 // NewModel creates a new TUI model.
 func NewModel() Model {
@@ -151,6 +166,21 @@ func loadSnapshots() tea.Msg {
 	return snapshotsLoadedMsg{snapshots: snaps, datasets: datasets}
 }
 
+func loadHealth() tea.Msg {
+	pools, poolErr := zfs.PoolStatuses()
+	smart, smartErr := zfs.CheckSMART(nil)
+
+	// Report the first error encountered, but still return partial data
+	var err error
+	if poolErr != nil {
+		err = poolErr
+	} else if smartErr != nil {
+		err = smartErr
+	}
+
+	return healthLoadedMsg{pools: pools, smart: smart, err: err}
+}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -181,6 +211,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case clearStatusMsg:
 		m.statusMsg = ""
 		m.statusErr = false
+		return m, nil
+
+	case healthLoadedMsg:
+		m.healthLoading = false
+		m.poolStatuses = msg.pools
+		m.smartStatuses = msg.smart
+		if msg.err != nil {
+			m.statusMsg = fmt.Sprintf("Health check warning: %v", msg.err)
+			m.statusErr = true
+			return m, tea.Tick(4*time.Second, func(time.Time) tea.Msg {
+				return clearStatusMsg{}
+			})
+		}
 		return m, nil
 
 	case tea.KeyMsg:
@@ -264,6 +307,41 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Handle health view
+	if m.currentView == viewHealth {
+		switch {
+		case key.Matches(msg, keys.Cancel), key.Matches(msg, key.NewBinding(key.WithKeys("h"))):
+			m.currentView = viewList
+			return m, nil
+		case key.Matches(msg, keys.Quit):
+			return m, tea.Quit
+		case key.Matches(msg, keys.Up):
+			if m.healthScroll > 0 {
+				m.healthScroll--
+			}
+			return m, nil
+		case key.Matches(msg, keys.Down):
+			m.healthScroll++
+			return m, nil
+		case key.Matches(msg, keys.PageUp):
+			m.healthScroll -= m.viewportHeight()
+			if m.healthScroll < 0 {
+				m.healthScroll = 0
+			}
+			return m, nil
+		case key.Matches(msg, keys.PageDown):
+			m.healthScroll += m.viewportHeight()
+			return m, nil
+		case key.Matches(msg, keys.Refresh):
+			m.healthLoading = true
+			return m, loadHealth
+		case key.Matches(msg, keys.Help):
+			m.showHelp = !m.showHelp
+			return m, nil
+		}
+		return m, nil
+	}
+
 	// Main list view
 	switch {
 	case key.Matches(msg, keys.Quit):
@@ -340,6 +418,12 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, keys.Refresh):
 		return m, loadSnapshots
+
+	case key.Matches(msg, keys.Health):
+		m.currentView = viewHealth
+		m.healthLoading = true
+		m.healthScroll = 0
+		return m, loadHealth
 	}
 
 	return m, nil

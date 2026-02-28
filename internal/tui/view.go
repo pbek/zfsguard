@@ -72,6 +72,29 @@ var (
 
 	snapNameStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FFFFFF"))
+
+	healthTitleStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#00BFFF")).
+				Underline(true)
+
+	healthyStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#00FF88"))
+
+	unhealthyStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#FF4444"))
+
+	healthLabelStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#AAAAAA"))
+
+	healthValueStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#CCCCCC"))
+
+	healthDimStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#666666"))
 )
 
 func (m Model) View() string {
@@ -93,6 +116,8 @@ func (m Model) View() string {
 		b.WriteString(m.viewList())
 		b.WriteString("\n")
 		b.WriteString(m.viewConfirmDeleteAll())
+	case viewHealth:
+		b.WriteString(m.viewHealthReport())
 	default:
 		b.WriteString(m.viewList())
 	}
@@ -332,4 +357,151 @@ func (m Model) viewConfirmDeleteAll() string {
 	content += "This action is IRREVERSIBLE and requires elevated privileges.\n\n"
 	content += "Press 'y' to confirm, 'n'/Esc to cancel"
 	return dialogStyle.Render(content)
+}
+
+func (m Model) viewHealthReport() string {
+	var lines []string
+
+	if m.healthLoading {
+		lines = append(lines, "")
+		lines = append(lines, healthLabelStyle.Render("  Loading health data..."))
+		lines = append(lines, "")
+		return strings.Join(lines, "\n")
+	}
+
+	// ZFS Pool Health section
+	lines = append(lines, "")
+	lines = append(lines, healthTitleStyle.Render("  ZFS Pool Health"))
+	lines = append(lines, "")
+
+	if len(m.poolStatuses) == 0 {
+		lines = append(
+			lines,
+			healthDimStyle.Render("  No pools found or unable to query pool status."),
+		)
+		lines = append(lines, "")
+	} else {
+		for _, pool := range m.poolStatuses {
+			stateLabel := healthyStyle.Render(pool.State)
+			if pool.State != "ONLINE" {
+				stateLabel = unhealthyStyle.Render(pool.State)
+			}
+
+			lines = append(lines,
+				fmt.Sprintf("  %s  %s",
+					healthLabelStyle.Render(fmt.Sprintf("%-20s", pool.Name)),
+					stateLabel,
+				),
+			)
+
+			errText := pool.Errors
+			if errText == "" {
+				errText = "No known data errors"
+			}
+			if errText == "No known data errors" {
+				lines = append(lines,
+					fmt.Sprintf("  %s  %s",
+						healthDimStyle.Render(fmt.Sprintf("%-20s", "")),
+						healthDimStyle.Render("Errors: "+errText),
+					),
+				)
+			} else {
+				lines = append(lines,
+					fmt.Sprintf("  %s  %s",
+						healthDimStyle.Render(fmt.Sprintf("%-20s", "")),
+						unhealthyStyle.Render("Errors: "+errText),
+					),
+				)
+			}
+
+			// Render raw zpool status output (indented and dimmed)
+			if pool.Raw != "" {
+				lines = append(lines, "")
+				lines = append(lines, healthLabelStyle.Render("  Detailed status (zpool status "+pool.Name+"):"))
+				lines = append(lines, headerStyle.Render("  "+strings.Repeat("─", min(m.width-4, 80))))
+				for _, rawLine := range strings.Split(strings.TrimRight(pool.Raw, "\n"), "\n") {
+					lines = append(lines, healthDimStyle.Render("  "+rawLine))
+				}
+				lines = append(lines, headerStyle.Render("  "+strings.Repeat("─", min(m.width-4, 80))))
+			}
+
+			lines = append(lines, "")
+		}
+	}
+
+	// SMART Disk Health section
+	lines = append(lines, healthTitleStyle.Render("  SMART Disk Health"))
+	lines = append(lines, "")
+
+	if len(m.smartStatuses) == 0 {
+		lines = append(
+			lines,
+			healthDimStyle.Render("  No disks found or unable to query SMART status."),
+		)
+		lines = append(lines, "")
+	} else {
+		for _, disk := range m.smartStatuses {
+			statusLabel := healthyStyle.Render("HEALTHY")
+			if !disk.Healthy {
+				statusLabel = unhealthyStyle.Render("UNHEALTHY")
+			}
+
+			lines = append(lines,
+				fmt.Sprintf("  %s  %s  %s",
+					healthLabelStyle.Render(fmt.Sprintf("%-16s", disk.Device)),
+					statusLabel,
+					healthValueStyle.Render(disk.Summary),
+				),
+			)
+
+			// Render raw smartctl output (indented and dimmed)
+			if disk.Raw != "" {
+				lines = append(lines, "")
+				lines = append(lines, healthLabelStyle.Render("  Detailed status (smartctl -H "+disk.Device+"):"))
+				lines = append(lines, headerStyle.Render("  "+strings.Repeat("─", min(m.width-4, 80))))
+				for _, rawLine := range strings.Split(strings.TrimRight(disk.Raw, "\n"), "\n") {
+					lines = append(lines, healthDimStyle.Render("  "+rawLine))
+				}
+				lines = append(lines, headerStyle.Render("  "+strings.Repeat("─", min(m.width-4, 80))))
+			}
+
+			lines = append(lines, "")
+		}
+	}
+
+	// Footer hint
+	lines = append(lines, healthDimStyle.Render("  Press 'r' to refresh | 'h'/Esc to go back"))
+
+	// Apply scrolling
+	vpHeight := m.viewportHeight()
+	totalLines := len(lines)
+
+	scroll := m.healthScroll
+	if scroll > totalLines-vpHeight {
+		scroll = totalLines - vpHeight
+	}
+	if scroll < 0 {
+		scroll = 0
+	}
+
+	end := scroll + vpHeight
+	if end > totalLines {
+		end = totalLines
+	}
+
+	var b strings.Builder
+	for _, line := range lines[scroll:end] {
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+
+	// Scroll indicator
+	if totalLines > vpHeight {
+		pct := float64(scroll) / float64(totalLines-vpHeight) * 100
+		scrollInfo := fmt.Sprintf(" [lines %d-%d of %d] %.0f%%", scroll+1, end, totalLines, pct)
+		b.WriteString(countStyle.Render(scrollInfo))
+		b.WriteString("\n")
+	}
+
+	return b.String()
 }
