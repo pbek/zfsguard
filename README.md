@@ -1,5 +1,7 @@
 # ZFSGuard
 
+[Changelog](CHANGELOG.md) · [Releases](https://github.com/pbek/zfsguard/releases)
+
 A beautiful terminal user interface (TUI) for managing ZFS snapshots with a background health monitoring service for ZFS and SMART errors. Sends alerts to dozens of notification services and your local Linux desktop.
 
 ## Features
