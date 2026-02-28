@@ -391,20 +391,10 @@ func (m *Model) executeDelete() (tea.Model, tea.Cmd) {
 	m.currentView = viewList
 
 	return m, func() tea.Msg {
-		results := zfs.DestroySnapshots(toDelete)
-		var failed int
-		for _, err := range results {
-			if err != nil {
-				failed++
-			}
-		}
-		// Reload snapshots
+		zfs.DestroySnapshots(toDelete)
+		// Reload snapshots regardless of individual errors
 		snaps, _ := zfs.ListSnapshots()
 		datasets, _ := zfs.ListDatasets()
-
-		if failed > 0 {
-			return snapshotsLoadedMsg{snapshots: snaps, datasets: datasets}
-		}
 		return snapshotsLoadedMsg{snapshots: snaps, datasets: datasets}
 	}
 }
@@ -510,11 +500,4 @@ func (m *Model) ensureVisible() {
 	if m.offset < 0 {
 		m.offset = 0
 	}
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

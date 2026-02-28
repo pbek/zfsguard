@@ -309,10 +309,3 @@ func (m Model) viewConfirmDeleteAll() string {
 	content += "Press 'y' to confirm, 'n'/Esc to cancel"
 	return dialogStyle.Render(content)
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
