@@ -44,20 +44,11 @@
               description = "TUI for ZFS snapshot management with health monitoring and notifications";
               homepage = "https://github.com/pbek/zfsguard";
               license = licenses.gpl3Plus;
-              maintainers = [ ];
+              maintainers = with lib.maintainers; [ pbek ];
               platforms = platforms.linux;
             };
           };
           default = zfsguard;
-        };
-
-        devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            go
-            gopls
-            golangci-lint
-            goreleaser
-          ];
         };
       }
     )
