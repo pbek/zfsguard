@@ -7,11 +7,12 @@ A beautiful terminal user interface (TUI) for managing ZFS snapshots with a back
 ### TUI Snapshot Manager (`zfsguard`)
 
 - **List** all ZFS snapshots with dataset, name, used space, referenced size, and creation time
-- **Create** snapshots with an interactive form (select dataset, name auto-populated with timestamp)
+- **Create** snapshots with an interactive form (select dataset, name auto-populated with timestamp, `Esc` to cancel)
 - **Delete** selected snapshots with confirmation dialog
 - **Bulk select** snapshots with space/x, select all with `a`
 - **Delete all** snapshots with a single key (`D`)
 - **Filter** snapshots by name with `/` search
+- **Refresh** snapshot list after creation or on demand (`r`)
 - **Scrollable** viewport with page up/down support
 - **Vim-style** keybindings (j/k navigation)
 - Colored output with dataset and snapshot name highlighting
