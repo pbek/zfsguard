@@ -87,10 +87,17 @@ func DestroySnapshot(name string) error {
 		outStr := string(out)
 		if !isRoot() && strings.Contains(strings.ToLower(outStr), "permission denied") {
 			sudoCmd := exec.Command("sudo", "-n", "zfs", "destroy", name)
-			if sudoOut, sudoErr := sudoCmd.CombinedOutput(); sudoErr == nil {
+			sudoOut, sudoErr := sudoCmd.CombinedOutput()
+			if sudoErr == nil {
 				return nil
-			} else if strings.Contains(strings.ToLower(string(sudoOut)), "a password is required") {
-				return fmt.Errorf("failed to destroy snapshot %q: permission denied; run zfsguard with sudo or configure NOPASSWD", name)
+			}
+			sudoLower := strings.ToLower(string(sudoOut))
+			if strings.Contains(sudoLower, "a password is required") ||
+				strings.Contains(sudoLower, "interactive authentication is required") {
+				return fmt.Errorf(
+					"failed to destroy snapshot %q: permission denied; run zfsguard with sudo or configure NOPASSWD",
+					name,
+				)
 			} else {
 				return fmt.Errorf("failed to destroy snapshot %q: %s: %w", name, string(sudoOut), sudoErr)
 			}

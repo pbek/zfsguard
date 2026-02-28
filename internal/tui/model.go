@@ -3,7 +3,6 @@ package tui
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -391,19 +390,36 @@ func (m *Model) executeDelete() (tea.Model, tea.Cmd) {
 
 	m.currentView = viewList
 
-	return m, func() tea.Msg {
+	deleteCmd := func() tea.Msg {
 		errs := zfs.DestroySnapshots(toDelete)
-		// Log any individual snapshot deletion failures but continue
-		for name, err := range errs {
-			if err != nil {
-				log.Printf("Failed to destroy snapshot %s: %v", name, err)
+		permDenied := false
+		otherErrs := 0
+		for _, err := range errs {
+			if err == nil {
+				continue
+			}
+			if strings.Contains(strings.ToLower(err.Error()), "permission denied") {
+				permDenied = true
+				continue
+			}
+			otherErrs++
+		}
+		if permDenied {
+			return statusMsg{
+				msg:   "Delete failed: permission denied; run zfsguard with sudo or configure NOPASSWD",
+				isErr: true,
 			}
 		}
-		// Reload snapshots regardless of individual errors
-		snaps, _ := zfs.ListSnapshots()
-		datasets, _ := zfs.ListDatasets()
-		return snapshotsLoadedMsg{snapshots: snaps, datasets: datasets}
+		if otherErrs > 0 {
+			return statusMsg{
+				msg:   fmt.Sprintf("Delete failed for %d snapshot(s)", otherErrs),
+				isErr: true,
+			}
+		}
+		return statusMsg{msg: fmt.Sprintf("Deleted %d snapshot(s)", len(toDelete)), isErr: false}
 	}
+
+	return m, tea.Batch(deleteCmd, loadSnapshots)
 }
 
 func (m *Model) selectedSnapshots() []zfs.Snapshot {
