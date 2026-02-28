@@ -1,4 +1,4 @@
-name: CI
+name: 🔬 CI
 
 on:
   push:
@@ -8,54 +8,57 @@ on:
 
 jobs:
   test:
+    name: 🧪 Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: 🐹 Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.25"
 
-      - name: Verify dependencies
+      - name: 🔍 Verify dependencies
         run: go mod verify
 
-      - name: Build
+      - name: 🔨 Build
         run: |
           VERSION=$(cat VERSION)
           go build -ldflags "-X github.com/pbek/zfsguard/internal/version.Version=$VERSION" -v ./cmd/zfsguard
           go build -ldflags "-X github.com/pbek/zfsguard/internal/version.Version=$VERSION" -v ./cmd/zfsguard-monitor
 
-      - name: Run go vet
+      - name: 🔎 Run go vet
         run: go vet ./...
 
-      - name: Run tests
+      - name: ✅ Run tests
         run: go test -v -race ./...
 
   lint:
+    name: 🧹 Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: 🐹 Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.25"
 
-      - name: golangci-lint
+      - name: 🔍 golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
 
   nix:
+    name: ❄️ Nix Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Nix
+      - name: ❄️ Install Nix
         uses: cachix/install-nix-action@v30
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Build with Nix
+      - name: 🔨 Build with Nix
         run: nix build
