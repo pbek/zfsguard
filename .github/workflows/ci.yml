@@ -16,7 +16,7 @@ jobs:
       - name: 🐹 Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version-file: go.mod
 
       - name: 🔍 Verify dependencies
         run: go mod verify
@@ -42,12 +42,13 @@ jobs:
       - name: 🐹 Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version-file: go.mod
 
       - name: 🔍 golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: v2.10.1
+          args: --timeout=5m
 
   nix:
     name: ❄️ Nix Build
