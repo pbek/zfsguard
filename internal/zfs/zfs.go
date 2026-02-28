@@ -4,7 +4,9 @@ package zfs
 import (
 	"bufio"
 	"fmt"
+	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -38,6 +40,7 @@ func ListSnapshots() ([]Snapshot, error) {
 		"-H",
 		"-o",
 		"name,used,refer,creation",
+		"-p",
 		"-s",
 		"creation",
 	)
@@ -81,7 +84,18 @@ func CreateSnapshot(name string) error {
 func DestroySnapshot(name string) error {
 	cmd := exec.Command("zfs", "destroy", name)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to destroy snapshot %q: %s: %w", name, string(out), err)
+		outStr := string(out)
+		if !isRoot() && strings.Contains(strings.ToLower(outStr), "permission denied") {
+			sudoCmd := exec.Command("sudo", "-n", "zfs", "destroy", name)
+			if sudoOut, sudoErr := sudoCmd.CombinedOutput(); sudoErr == nil {
+				return nil
+			} else if strings.Contains(strings.ToLower(string(sudoOut)), "a password is required") {
+				return fmt.Errorf("failed to destroy snapshot %q: permission denied; run zfsguard with sudo or configure NOPASSWD", name)
+			} else {
+				return fmt.Errorf("failed to destroy snapshot %q: %s: %w", name, string(sudoOut), sudoErr)
+			}
+		}
+		return fmt.Errorf("failed to destroy snapshot %q: %s: %w", name, outStr, err)
 	}
 	return nil
 }
@@ -172,6 +186,13 @@ func parseSnapshots(output string) ([]Snapshot, error) {
 		refer := strings.TrimSpace(parts[2])
 		creationStr := strings.TrimSpace(parts[3])
 
+		if parsed, ok := parseUint(used); ok {
+			used = formatBytes(parsed)
+		}
+		if parsed, ok := parseUint(refer); ok {
+			refer = formatBytes(parsed)
+		}
+
 		// Parse dataset and short name
 		atIdx := strings.Index(name, "@")
 		var dataset, shortName string
@@ -184,7 +205,12 @@ func parseSnapshots(output string) ([]Snapshot, error) {
 		}
 
 		// Parse creation time - ZFS outputs like "Mon Jan  2 15:04 2006"
-		creation, _ := parseZFSTime(creationStr)
+		var creation time.Time
+		if parsed, ok := parseInt64(creationStr); ok {
+			creation = time.Unix(parsed, 0)
+		} else {
+			creation, _ = parseZFSTime(creationStr)
+		}
 
 		snapshots = append(snapshots, Snapshot{
 			Name:      name,
@@ -205,6 +231,9 @@ func parseZFSTime(s string) (time.Time, error) {
 		"Mon Jan _2 15:04 2006",
 		"Mon Jan  2 15:04 2006",
 		"Mon Jan 2 15:04 2006",
+		"Mon Jan _2 15:04 2006 MST",
+		"Mon Jan  2 15:04 2006 MST",
+		"Mon Jan 2 15:04 2006 MST",
 		time.ANSIC,
 		time.UnixDate,
 	}
@@ -215,6 +244,43 @@ func parseZFSTime(s string) (time.Time, error) {
 		}
 	}
 	return time.Time{}, fmt.Errorf("unable to parse time: %s", s)
+}
+
+func parseUint(value string) (uint64, bool) {
+	parsed, err := strconv.ParseUint(value, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return parsed, true
+}
+
+func parseInt64(value string) (int64, bool) {
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return parsed, true
+}
+
+func formatBytes(value uint64) string {
+	if value < 1024 {
+		return fmt.Sprintf("%dB", value)
+	}
+	units := []string{"K", "M", "G", "T", "P", "E"}
+	val := float64(value)
+	idx := 0
+	for val >= 1024 && idx < len(units)-1 {
+		val /= 1024
+		idx++
+	}
+	if val >= 10 {
+		return fmt.Sprintf("%.0f%s", val, units[idx])
+	}
+	return fmt.Sprintf("%.1f%s", val, units[idx])
+}
+
+func isRoot() bool {
+	return os.Geteuid() == 0
 }
 
 // CheckZFSErrors checks all pools for errors and returns a summary.
