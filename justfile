@@ -23,14 +23,14 @@ update:
 # Build both binaries
 [group('build')]
 build:
-    go build -ldflags "-X github.com/pbek/zfsguard/internal/version.Version={{version}}" -v ./cmd/zfsguard
-    go build -ldflags "-X github.com/pbek/zfsguard/internal/version.Version={{version}}" -v ./cmd/zfsguard-monitor
+    go build -ldflags "-X github.com/pbek/zfsguard/internal/version.Version={{ version }}" -v ./cmd/zfsguard
+    go build -ldflags "-X github.com/pbek/zfsguard/internal/version.Version={{ version }}" -v ./cmd/zfsguard-monitor
 
 # Install both binaries
 [group('build')]
 install:
-    go install -ldflags "-X github.com/pbek/zfsguard/internal/version.Version={{version}}" ./cmd/zfsguard
-    go install -ldflags "-X github.com/pbek/zfsguard/internal/version.Version={{version}}" ./cmd/zfsguard-monitor
+    go install -ldflags "-X github.com/pbek/zfsguard/internal/version.Version={{ version }}" ./cmd/zfsguard
+    go install -ldflags "-X github.com/pbek/zfsguard/internal/version.Version={{ version }}" ./cmd/zfsguard-monitor
 
 # Run tests
 [group('test')]
