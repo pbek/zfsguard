@@ -1,0 +1,36 @@
+# Binaries
+zfsguard
+zfsguard-monitor
+dist/
+
+# Go
+vendor/
+
+# Nix
+result
+result-*
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+
+.shared
+
+.shared
+
+# Devenv
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml

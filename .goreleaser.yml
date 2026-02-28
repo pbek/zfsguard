@@ -1,0 +1,67 @@
+version: 2
+
+project_name: zfsguard
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: zfsguard
+    main: ./cmd/zfsguard
+    binary: zfsguard
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/pbek/zfsguard/internal/version.Version={{ .Version }}
+
+  - id: zfsguard-monitor
+    main: ./cmd/zfsguard-monitor
+    binary: zfsguard-monitor
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/pbek/zfsguard/internal/version.Version={{ .Version }}
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+      - config.example.yaml
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+
+release:
+  github:
+    owner: pbek
+    name: zfsguard
+  draft: false
+  prerelease: auto
+  name_template: "{{ .Tag }}"

@@ -1,0 +1,39 @@
+# ZFSGuard configuration file
+# Place at ~/.config/zfsguard/config.yaml or /etc/zfsguard/config.yaml
+
+monitor:
+  # How often to run health checks (in minutes)
+  interval_minutes: 60
+
+  # Check ZFS pool health (state, errors)
+  check_zfs: true
+
+  # Check SMART disk health via smartctl
+  check_smart: true
+
+  # Specific devices to check. Leave empty to auto-detect.
+  # smart_devices:
+  #   - /dev/sda
+  #   - /dev/sdb
+
+notify:
+  # Shoutrrr notification URLs.
+  # See https://containrrr.dev/shoutrrr/services/overview/ for all supported services.
+  #
+  # Examples:
+  # shoutrrr_urls:
+  #   - "discord://token@id"
+  #   - "telegram://token@telegram?channels=channel"
+  #   - "pushover://shoutrrr:token@user"
+  #   - "smtp://user:pass@host:port/?to=recipient"
+  #   - "gotify://host/token"
+  #   - "ntfy://ntfy.sh/topic"
+  #   - "slack://hook:token-a/token-b/token-c"
+  shoutrrr_urls: []
+
+  # Send notifications to the local Linux desktop via notify-send
+  desktop: true
+
+defaults:
+  # Default prefix for auto-generated snapshot names
+  snapshot_prefix: "zfsguard"
