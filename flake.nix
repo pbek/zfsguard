@@ -27,7 +27,7 @@
 
             # To update: run `nix build` and replace with the hash from the error message,
             # or set to `pkgs.lib.fakeHash` to get the correct hash.
-            vendorHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            vendorHash = "sha256-ybSgbiKZqafvTmV04YDyBG5eI2/tJ0g8NLQckI0n31U=";
 
             subPackages = [
               "cmd/zfsguard"
