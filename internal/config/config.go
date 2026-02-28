@@ -22,6 +22,7 @@ type MonitorConfig struct {
 	CheckZFS        bool     `yaml:"check_zfs"`
 	CheckSMART      bool     `yaml:"check_smart"`
 	SMARTDevices    []string `yaml:"smart_devices"`
+	ReportPath      string   `yaml:"report_path"`
 }
 
 // NotifyConfig holds notification service settings.
@@ -52,6 +53,7 @@ func DefaultConfig() Config {
 			IntervalMinutes: 60,
 			CheckZFS:        true,
 			CheckSMART:      true,
+			ReportPath:      "/var/lib/zfsguard/health-report.json",
 		},
 		Notify: NotifyConfig{
 			Desktop: true,

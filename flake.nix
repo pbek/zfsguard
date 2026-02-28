@@ -100,6 +100,11 @@
                       default = [ ];
                       description = "List of devices to check. Empty means auto-detect.";
                     };
+                    report_path = lib.mkOption {
+                      type = lib.types.str;
+                      default = "/var/lib/zfsguard/health-report.json";
+                      description = "Path where the monitor writes the JSON health report for the TUI to read.";
+                    };
                   };
                   notify = {
                     shoutrrr_urls = lib.mkOption {
@@ -142,13 +147,19 @@
                 Restart = "on-failure";
                 RestartSec = "30s";
 
+                # State directory for health report file (/var/lib/zfsguard)
+                StateDirectory = "zfsguard";
+
                 # Security hardening
                 NoNewPrivileges = false; # needs zfs commands
                 ProtectHome = true;
                 ProtectSystem = "strict";
                 PrivateTmp = true;
                 ReadOnlyPaths = [ "/" ];
-                ReadWritePaths = [ "/dev" ];
+                ReadWritePaths = [
+                  "/dev"
+                  "/var/lib/zfsguard"
+                ];
               };
 
               path = with pkgs; [

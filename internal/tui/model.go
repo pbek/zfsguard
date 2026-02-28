@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/pbek/zfsguard/internal/report"
 	"github.com/pbek/zfsguard/internal/zfs"
 )
 
@@ -105,10 +106,10 @@ type Model struct {
 	filtered     []int // indices into snapshots that match the filter
 
 	// Health report
-	poolStatuses  []zfs.PoolStatus
-	smartStatuses []zfs.SMARTStatus
+	healthReport  *report.HealthReport
 	healthLoading bool
-	healthScroll  int // scroll offset for health view
+	healthScroll  int    // scroll offset for health view
+	reportPath    string // path to the health report file
 
 	err error
 }
@@ -126,13 +127,12 @@ type statusMsg struct {
 type clearStatusMsg struct{}
 
 type healthLoadedMsg struct {
-	pools []zfs.PoolStatus
-	smart []zfs.SMARTStatus
-	err   error
+	report *report.HealthReport
+	err    error
 }
 
 // NewModel creates a new TUI model.
-func NewModel() Model {
+func NewModel(reportPath string) Model {
 	ti := textinput.New()
 	ti.Placeholder = "snapshot-name"
 	ti.CharLimit = 128
@@ -150,6 +150,7 @@ func NewModel() Model {
 		filterInput: fi,
 		height:      24,
 		width:       80,
+		reportPath:  reportPath,
 	}
 }
 
@@ -166,19 +167,14 @@ func loadSnapshots() tea.Msg {
 	return snapshotsLoadedMsg{snapshots: snaps, datasets: datasets}
 }
 
-func loadHealth() tea.Msg {
-	pools, poolErr := zfs.PoolStatuses()
-	smart, smartErr := zfs.CheckSMART(nil)
-
-	// Report the first error encountered, but still return partial data
-	var err error
-	if poolErr != nil {
-		err = poolErr
-	} else if smartErr != nil {
-		err = smartErr
+func loadHealthFromPath(path string) tea.Cmd {
+	return func() tea.Msg {
+		r, err := report.Read(path)
+		if err != nil {
+			return healthLoadedMsg{err: err}
+		}
+		return healthLoadedMsg{report: &r}
 	}
-
-	return healthLoadedMsg{pools: pools, smart: smart, err: err}
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -215,10 +211,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case healthLoadedMsg:
 		m.healthLoading = false
-		m.poolStatuses = msg.pools
-		m.smartStatuses = msg.smart
+		m.healthReport = msg.report
 		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("Health check warning: %v", msg.err)
+			m.statusMsg = fmt.Sprintf("Health report: %v", msg.err)
 			m.statusErr = true
 			return m, tea.Tick(4*time.Second, func(time.Time) tea.Msg {
 				return clearStatusMsg{}
@@ -334,7 +329,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case key.Matches(msg, keys.Refresh):
 			m.healthLoading = true
-			return m, loadHealth
+			return m, loadHealthFromPath(m.reportPath)
 		case key.Matches(msg, keys.Help):
 			m.showHelp = !m.showHelp
 			return m, nil
@@ -423,7 +418,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.currentView = viewHealth
 		m.healthLoading = true
 		m.healthScroll = 0
-		return m, loadHealth
+		return m, loadHealthFromPath(m.reportPath)
 	}
 
 	return m, nil

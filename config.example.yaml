@@ -16,6 +16,11 @@ monitor:
   #   - /dev/sda
   #   - /dev/sdb
 
+  # Path where the health report JSON is written after each check cycle.
+  # The TUI reads this file when you press 'h' to view pool and disk health.
+  # When running via the NixOS module, this path is created automatically.
+  # report_path: /var/lib/zfsguard/health-report.json
+
 notify:
   # Shoutrrr notification URLs.
   # See https://containrrr.dev/shoutrrr/services/overview/ for all supported services.

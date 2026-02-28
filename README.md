@@ -15,6 +15,7 @@ A beautiful terminal user interface (TUI) for managing ZFS snapshots with a back
 - **Delete all** snapshots with a single key (`D`)
 - **Filter** snapshots by name with `/` search
 - **Refresh** snapshot list after creation or on demand (`r`)
+- **Health report** view (`h`) showing ZFS pool states and SMART disk results, sourced from the monitor's JSON output
 - **Scrollable** viewport with page up/down support
 - **Vim-style** keybindings (j/k navigation)
 - Colored output with dataset and snapshot name highlighting
@@ -24,6 +25,7 @@ A beautiful terminal user interface (TUI) for managing ZFS snapshots with a back
 
 - Runs as a **systemd service** checking ZFS pool health and SMART disk health at configurable intervals
 - Reports pool state degradation, data errors, and SMART failures
+- **Writes a JSON health report** after each check cycle for the TUI to display
 - Sends alerts via **[shoutrrr](https://containrrr.dev/shoutrrr/)** supporting 15+ notification services:
   - Discord, Slack, Telegram, Pushover, Gotify, ntfy
   - Email (SMTP), Microsoft Teams, Matrix, Mattermost
@@ -84,6 +86,7 @@ Add to your `flake.nix`:
                 interval_minutes = 30;
                 check_zfs = true;
                 check_smart = true;
+                # report_path = "/var/lib/zfsguard/health-report.json"; # default
               };
               notify = {
                 desktop = true;
@@ -127,6 +130,9 @@ zfsguard
 # Run with sudo for snapshot creation/deletion
 sudo zfsguard
 
+# Use a specific config file
+zfsguard --config /path/to/config.yaml
+
 # Show version
 zfsguard --version
 ```
@@ -144,8 +150,23 @@ zfsguard --version
 | `d`             | Delete selected        |
 | `D`             | Delete ALL snapshots   |
 | `r`             | Refresh snapshot list  |
+| `h`             | Open health report     |
 | `?`             | Toggle full help       |
 | `q`             | Quit                   |
+
+#### Health report view
+
+Press `h` from the snapshot list to open the health report panel. It displays the ZFS pool states and SMART disk results collected by the last monitor run, along with the report timestamp and age.
+
+| Key             | Action                  |
+| --------------- | ----------------------- |
+| `j` / `k`       | Scroll up/down          |
+| `PgUp` / `PgDn` | Page up/down            |
+| `r`             | Reload report from disk |
+| `h` / `Esc`     | Return to snapshot list |
+| `q`             | Quit                    |
+
+The health report is read from `monitor.report_path` in the config (default `/var/lib/zfsguard/health-report.json`). If the file does not exist yet (e.g. the monitor has not run or the path is not configured), the TUI shows a descriptive message rather than an error.
 
 #### Create snapshot dialog
 
@@ -181,6 +202,7 @@ monitor:
   # smart_devices:
   #   - /dev/sda
   #   - /dev/sdb
+  # report_path: /var/lib/zfsguard/health-report.json
 
 notify:
   shoutrrr_urls:
@@ -248,6 +270,8 @@ zfsguard/
 │   │   └── monitor.go
 │   ├── notify/             # Notification dispatching (shoutrrr + desktop)
 │   │   └── notify.go
+│   ├── report/             # Health report JSON types + read/write
+│   │   └── report.go
 │   ├── tui/                # Terminal UI (bubbletea + lipgloss)
 │   │   ├── model.go
 │   │   └── view.go

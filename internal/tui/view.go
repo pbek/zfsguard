@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -364,24 +365,52 @@ func (m Model) viewHealthReport() string {
 
 	if m.healthLoading {
 		lines = append(lines, "")
-		lines = append(lines, healthLabelStyle.Render("  Loading health data..."))
+		lines = append(lines, healthLabelStyle.Render("  Loading health report..."))
 		lines = append(lines, "")
 		return strings.Join(lines, "\n")
 	}
 
-	// ZFS Pool Health section
+	if m.healthReport == nil {
+		lines = append(lines, "")
+		lines = append(lines, healthDimStyle.Render("  No health report available."))
+		lines = append(lines, "")
+		lines = append(
+			lines,
+			healthDimStyle.Render("  Ensure the zfsguard-monitor service is running"),
+		)
+		lines = append(
+			lines,
+			healthDimStyle.Render("  and has completed at least one health check cycle."),
+		)
+		lines = append(lines, "")
+		lines = append(lines, healthDimStyle.Render("  Press 'r' to retry | 'h'/Esc to go back"))
+		return strings.Join(lines, "\n") + "\n"
+	}
+
+	r := m.healthReport
+
+	// Report timestamp
 	lines = append(lines, "")
+	age := time.Since(r.Timestamp).Truncate(time.Second)
+	lines = append(lines,
+		healthDimStyle.Render(fmt.Sprintf("  Last check: %s (%s ago)",
+			r.Timestamp.Format("2006-01-02 15:04:05"), age)))
+	lines = append(lines, "")
+
+	// ZFS Pool Health section
 	lines = append(lines, healthTitleStyle.Render("  ZFS Pool Health"))
 	lines = append(lines, "")
 
-	if len(m.poolStatuses) == 0 {
-		lines = append(
-			lines,
-			healthDimStyle.Render("  No pools found or unable to query pool status."),
-		)
+	if r.PoolError != "" {
+		lines = append(lines, unhealthyStyle.Render("  Error: "+r.PoolError))
+		lines = append(lines, "")
+	}
+
+	if len(r.Pools) == 0 && r.PoolError == "" {
+		lines = append(lines, healthDimStyle.Render("  No pools found."))
 		lines = append(lines, "")
 	} else {
-		for _, pool := range m.poolStatuses {
+		for _, pool := range r.Pools {
 			stateLabel := healthyStyle.Render(pool.State)
 			if pool.State != "ONLINE" {
 				stateLabel = unhealthyStyle.Render(pool.State)
@@ -433,14 +462,16 @@ func (m Model) viewHealthReport() string {
 	lines = append(lines, healthTitleStyle.Render("  SMART Disk Health"))
 	lines = append(lines, "")
 
-	if len(m.smartStatuses) == 0 {
-		lines = append(
-			lines,
-			healthDimStyle.Render("  No disks found or unable to query SMART status."),
-		)
+	if r.DiskError != "" {
+		lines = append(lines, unhealthyStyle.Render("  Error: "+r.DiskError))
+		lines = append(lines, "")
+	}
+
+	if len(r.Disks) == 0 && r.DiskError == "" {
+		lines = append(lines, healthDimStyle.Render("  No disks found."))
 		lines = append(lines, "")
 	} else {
-		for _, disk := range m.smartStatuses {
+		for _, disk := range r.Disks {
 			statusLabel := healthyStyle.Render("HEALTHY")
 			if !disk.Healthy {
 				statusLabel = unhealthyStyle.Render("UNHEALTHY")
