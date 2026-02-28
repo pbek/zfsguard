@@ -51,3 +51,8 @@ nix-build:
 [group('nix')]
 nix-build-force:
     nix build --rebuild
+
+# Run zfsguard using nix
+[group('nix')]
+nix-run:
+    nix run
