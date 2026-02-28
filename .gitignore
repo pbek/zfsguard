@@ -1,6 +1,6 @@
 # Binaries
-zfsguard
-zfsguard-monitor
+/zfsguard
+/zfsguard-monitor
 dist/
 
 # Go
