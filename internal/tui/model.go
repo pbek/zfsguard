@@ -53,7 +53,7 @@ var keys = keyMap{
 	Create:     key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "create snapshot")),
 	Refresh:    key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
 	Confirm:    key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "confirm")),
-	Cancel:     key.NewBinding(key.WithKeys("n", "escape"), key.WithHelp("n/esc", "cancel")),
+	Cancel:     key.NewBinding(key.WithKeys("n", "esc", "escape"), key.WithHelp("n/esc", "cancel")),
 	Quit:       key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
 	Help:       key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "toggle help")),
 	PageUp:     key.NewBinding(key.WithKeys("pgup", "ctrl+u"), key.WithHelp("PgUp", "page up")),
@@ -208,7 +208,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Handle filter mode input
 	if m.filterActive {
 		switch {
-		case key.Matches(msg, key.NewBinding(key.WithKeys("enter", "escape"))):
+		case key.Matches(msg, key.NewBinding(key.WithKeys("enter", "esc", "escape"))):
 			m.filterActive = false
 			m.filterInput.Blur()
 			if msg.String() == "escape" {
@@ -367,12 +367,14 @@ func (m *Model) executeCreate() (tea.Model, tea.Cmd) {
 	m.currentView = viewList
 	m.createInput.Blur()
 
-	return m, func() tea.Msg {
+	createCmd := func() tea.Msg {
 		if err := zfs.CreateSnapshot(fullName); err != nil {
 			return statusMsg{msg: fmt.Sprintf("Failed to create: %v", err), isErr: true}
 		}
 		return statusMsg{msg: fmt.Sprintf("Created snapshot: %s", fullName), isErr: false}
 	}
+
+	return m, tea.Batch(createCmd, loadSnapshots)
 }
 
 func (m *Model) executeDelete() (tea.Model, tea.Cmd) {
