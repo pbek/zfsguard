@@ -4,6 +4,7 @@ package monitor
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/pbek/zfsguard/internal/config"
@@ -58,10 +59,7 @@ func (s *Service) RunOnce() error {
 	}
 
 	if len(issues) > 0 {
-		msg := ""
-		for _, issue := range issues {
-			msg += issue + "\n"
-		}
+		msg := strings.Join(issues, "\n") + "\n"
 		if err := s.notifier.Send("ZFSGuard Alert", msg); err != nil {
 			log.Printf("Failed to send notification: %v", err)
 			return err

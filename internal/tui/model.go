@@ -3,6 +3,7 @@ package tui
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -391,7 +392,13 @@ func (m *Model) executeDelete() (tea.Model, tea.Cmd) {
 	m.currentView = viewList
 
 	return m, func() tea.Msg {
-		zfs.DestroySnapshots(toDelete)
+		errs := zfs.DestroySnapshots(toDelete)
+		// Log any individual snapshot deletion failures but continue
+		for name, err := range errs {
+			if err != nil {
+				log.Printf("Failed to destroy snapshot %s: %v", name, err)
+			}
+		}
 		// Reload snapshots regardless of individual errors
 		snaps, _ := zfs.ListSnapshots()
 		datasets, _ := zfs.ListDatasets()

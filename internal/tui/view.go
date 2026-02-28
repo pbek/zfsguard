@@ -224,16 +224,7 @@ func (m Model) viewList() string {
 			}
 		}
 
-		line := fmt.Sprintf(
-			"  %s %-30s %-10s %-10s %s",
-			check,
-			plainName,
-			snap.Used,
-			snap.Refer,
-			created,
-		)
-
-		// Replace the plain name with the colored version in the display
+		// Build the colored line with formatted dataset@snapshot coloring
 		coloredLine := fmt.Sprintf("  %s ", check)
 		padLen := 30 - len(plainName)
 		if padLen < 0 {
@@ -241,7 +232,6 @@ func (m Model) viewList() string {
 		}
 		coloredLine += formattedName + strings.Repeat(" ", padLen)
 		coloredLine += fmt.Sprintf(" %-10s %-10s %s", snap.Used, snap.Refer, created)
-		_ = line
 
 		if vi == m.cursor {
 			b.WriteString(cursorStyle.Render(coloredLine))
