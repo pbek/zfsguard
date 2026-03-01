@@ -4,6 +4,8 @@
 
 A beautiful terminal user interface (TUI) for managing ZFS snapshots with a background health monitoring service for ZFS and SMART errors. Sends alerts to dozens of notification services and your local Linux desktop.
 
+![ZFSGuard TUI screenshot](doc/zfsguard.webp)
+
 ## Features
 
 ### TUI Snapshot Manager (`zfsguard`)
