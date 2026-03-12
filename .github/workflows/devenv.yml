@@ -26,5 +26,5 @@ jobs:
       - name: 🔧 Install devenv
         run: nix profile install nixpkgs#devenv
 
-      - name: ✅ Run devenv test
-        run: devenv test
+      - name: ✅ Run Formatting checks
+        run: devenv shell "just format"
